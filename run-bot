@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+set -eu
+
+cd "$(dirname "$0")"
+# launchd gives us a minimal PATH, so fall back to the usual uv location.
+UV="${UV:-$(command -v uv 2>/dev/null || echo "$HOME/.local/bin/uv")}"
+exec "$UV" run src/run.py
