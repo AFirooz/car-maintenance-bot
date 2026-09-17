@@ -13,7 +13,9 @@ import aiohttp
 import subarulink
 import subarulink.const as sc
 from loguru import logger
+from subarulink.exceptions import InvalidCredentials
 
+import auth_guard
 from config import Config
 from ports import DiscoveredVehicle, Reading
 
@@ -56,7 +58,11 @@ class SubaruOdometer:
 
 
 @asynccontextmanager
-async def subaru_source(config: Config):
+async def subaru_source(config: Config, session):
+    if auth_guard.blocked(session, config.subaru_username, config.subaru_password):
+        count = auth_guard.failures(session, config.subaru_username, config.subaru_password)
+        raise auth_guard.CredentialsRefused(auth_guard.refusal_message(count))
+
     async with aiohttp.ClientSession() as websession:
         controller = subarulink.Controller(
             websession,
@@ -67,7 +73,16 @@ async def subaru_source(config: Config):
             config.subaru_device_name,
             country=config.subaru_country,
         )
-        await controller.connect()
+        try:
+            await controller.connect()
+        except InvalidCredentials:
+            count = auth_guard.record_failure(
+                session, config.subaru_username, config.subaru_password
+            )
+            logger.error(f"Subaru rejected the login ({count} in a row).")
+            raise
+
+        auth_guard.record_success(session, config.subaru_username, config.subaru_password)
         if not controller.device_registered:
             raise DeviceNotRegistered(
                 "This device is not registered with Subaru. Run: uv run src/register_device.py"

@@ -19,6 +19,7 @@ import db
 from bot import drain_updates, run_once
 from config import load_config
 from ports import SystemClock
+import auth_guard
 from subaru import subaru_source
 from telegram_chat import TelegramChat
 
@@ -49,11 +50,15 @@ async def main() -> int:
     clock = SystemClock()
 
     with session_factory() as session:
-        async with subaru_source(config) as odometer:
-            bot = Bot(token=config.telegram_token)
-            chat = TelegramChat(bot, config.owner_id, session)
-            await run_once(session, chat, odometer, clock, config.owner_id)
-            await _idle_window(session, chat, odometer, clock, config.owner_id)
+        try:
+            async with subaru_source(config, session) as odometer:
+                bot = Bot(token=config.telegram_token)
+                chat = TelegramChat(bot, config.owner_id, session)
+                await run_once(session, chat, odometer, clock, config.owner_id)
+                await _idle_window(session, chat, odometer, clock, config.owner_id)
+        except auth_guard.CredentialsRefused as error:
+            logger.error(str(error))
+            return 1
     return 0
 
 

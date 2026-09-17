@@ -41,6 +41,14 @@ launchd runs the bot daily at 12:00. It fetches odometers, sends anything due,
 then stays available for 30 minutes so an interactive flow can be finished. A
 command sent between runs is answered at the next one.
 
+## If Subaru rejects the login
+
+Subaru returns one generic error, `invalidAccount`, whether the email is wrong,
+the password is wrong, or the account has no connected services. After three
+rejected logins with the same credentials the bot stops trying, because Subaru
+locks accounts after repeated failures. Editing `SUBARU_USERNAME` or
+`SUBARU_PASSWORD` in `.env` clears the block automatically.
+
 ## Schema changes
 
 There are no migrations. If the schema in `src/schema.py` changes, delete the

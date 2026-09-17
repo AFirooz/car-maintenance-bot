@@ -13,10 +13,12 @@ import aiohttp
 import subarulink
 from subarulink.exceptions import InvalidCredentials, SubaruException
 
+import auth_guard
+import db
 from config import load_config
 
 
-def _explain_rejection(code: str, config) -> None:
+def _explain_rejection(code: str, config, count: int) -> None:
     """Subaru returns one generic code for every kind of login rejection."""
     print(f"Subaru rejected the login ({code}).")
     print()
@@ -30,8 +32,12 @@ def _explain_rejection(code: str, config) -> None:
     print("  3. The account has active MySubaru connected services (STARLINK) on")
     print("     at least one vehicle. An account with no enrolled vehicle is rejected.")
     print()
-    print("Stop retrying once you have failed a few times: Subaru locks accounts")
-    print("after repeated failures (accountLocked), which takes longer to undo.")
+    remaining = auth_guard.MAX_AUTH_FAILURES - count
+    if remaining > 0:
+        print(f"I will attempt {remaining} more login(s) with these exact credentials,")
+        print("then refuse, because Subaru locks accounts after repeated failures.")
+    else:
+        print("I will not try these credentials again until you change them in .env.")
 
 
 async def main() -> int:
@@ -40,6 +46,13 @@ async def main() -> int:
         print("Set SUBARU_DEVICE_ID in .env first. Any stable integer works, e.g.")
         print(f"  SUBARU_DEVICE_ID=\"{int(__import__('time').time())}\"")
         return 1
+
+    session_factory = db.make_session_factory(config.db_path)
+    with session_factory() as session:
+        if auth_guard.blocked(session, config.subaru_username, config.subaru_password):
+            count = auth_guard.failures(session, config.subaru_username, config.subaru_password)
+            print(auth_guard.refusal_message(count))
+            return 1
 
     async with aiohttp.ClientSession() as websession:
         controller = subarulink.Controller(
@@ -54,11 +67,18 @@ async def main() -> int:
         try:
             await controller.connect()
         except InvalidCredentials as error:
-            _explain_rejection(str(error), config)
+            with session_factory() as session:
+                count = auth_guard.record_failure(
+                    session, config.subaru_username, config.subaru_password
+                )
+            _explain_rejection(str(error), config, count)
             return 1
         except SubaruException as error:
             print(f"Subaru refused the connection: {error}")
             return 1
+
+        with session_factory() as session:
+            auth_guard.record_success(session, config.subaru_username, config.subaru_password)
 
         if controller.device_registered:
             print("Already registered. Nothing to do.")

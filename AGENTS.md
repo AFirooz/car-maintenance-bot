@@ -17,6 +17,9 @@
 - Keep dates/times in local context for this project.
 - launchd is the source of truth for scheduling; avoid app-level date gating logic.
 - Never call `subarulink`'s `update()`. It wakes the vehicle. Only `fetch()` is allowed.
+- Never probe live Subaru credentials in a loop. Subaru locks accounts after
+  repeated failures, so one failed login is the signal; do not retry with varied
+  parameters. `src/auth_guard.py` enforces a hard stop at three.
 - Tests drive the system through `run_once` in `src/bot.py` and assert only on
   messages sent and state persisted. Do not add seams below it.
 - Keep `README.md` short and concise.
