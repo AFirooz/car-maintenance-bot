@@ -1,8 +1,10 @@
 [project]
 name = "car-maintenance-bot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Telegram bot that reads a Subaru odometer and reminds you when maintenance is due"
 readme = "README.md"
+license = "PolyForm-Noncommercial-1.0.0"
+license-files = ["LICENSE.md"]
 requires-python = ">=3.14"
 dependencies = [
     "loguru>=0.7.3",

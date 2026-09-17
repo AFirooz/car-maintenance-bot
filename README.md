@@ -57,3 +57,10 @@ database file and run `uv run src/init_db.py` again.
 ## Tests
 
 `uv run pytest`
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE.md). Free to use, modify, and share for
+personal and other noncommercial purposes, as long as you keep the copyright
+notice. Commercial use is not permitted.
+
