@@ -22,7 +22,12 @@ echo "==> Initialising database"
 "$UV" run src/init_db.py
 
 echo "==> Checking Subaru device registration"
-"$UV" run src/register_device.py
+if ! "$UV" run src/register_device.py; then
+  echo
+  echo "Subaru registration did not complete. Everything else above is done."
+  echo "Fix the credentials in .env, then re-run: ./setup.sh"
+  exit 1
+fi
 
 mkdir -p "$(dirname "${LOG_PATH}")"
 

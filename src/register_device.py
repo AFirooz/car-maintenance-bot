@@ -11,8 +11,27 @@ import sys
 
 import aiohttp
 import subarulink
+from subarulink.exceptions import InvalidCredentials, SubaruException
 
 from config import load_config
+
+
+def _explain_rejection(code: str, config) -> None:
+    """Subaru returns one generic code for every kind of login rejection."""
+    print(f"Subaru rejected the login ({code}).")
+    print()
+    print("This code is generic: Subaru returns it for a wrong email, a wrong")
+    print("password, and an account without connected services alike. Check, in order:")
+    print()
+    print(f"  1. SUBARU_USERNAME is the email you sign in to MySubaru with.")
+    print(f"     Currently {len(config.subaru_username)} characters.")
+    print("  2. SUBARU_PASSWORD matches that sign-in, with no stray spaces.")
+    print("     Verify both at https://www.subaru.com/owners.html by signing in.")
+    print("  3. The account has active MySubaru connected services (STARLINK) on")
+    print("     at least one vehicle. An account with no enrolled vehicle is rejected.")
+    print()
+    print("Stop retrying once you have failed a few times: Subaru locks accounts")
+    print("after repeated failures (accountLocked), which takes longer to undo.")
 
 
 async def main() -> int:
@@ -32,7 +51,14 @@ async def main() -> int:
             config.subaru_device_name,
             country=config.subaru_country,
         )
-        await controller.connect()
+        try:
+            await controller.connect()
+        except InvalidCredentials as error:
+            _explain_rejection(str(error), config)
+            return 1
+        except SubaruException as error:
+            print(f"Subaru refused the connection: {error}")
+            return 1
 
         if controller.device_registered:
             print("Already registered. Nothing to do.")
